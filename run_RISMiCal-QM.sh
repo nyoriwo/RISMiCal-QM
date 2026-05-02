@@ -7,7 +7,7 @@
 cd $PBS_O_WORKDIR
 
 #
-# usage: qsub -v1 arg1=inputfile.inp run_RISMiCal-QM.sh 
+# usage: qsub -v arg1=inputfile.inp run_RISMiCal-QM.sh 
 #
 
 output=`basename $arg1 .inp`.out
