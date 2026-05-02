@@ -7,7 +7,7 @@
 
 <a id="english"></a>
 ## Overview
-**RISMiCal-QM** is a Python wrapper script designed to perform 3D-RISM-SCF calculations by coupling **Gaussian 16** (Quantum Mechanics engine) and **RISMiCal** (3D-RISM solver). It fully automates the self-consistent iterations between the solute's electronic structure and the solvent's 3D spatial distribution.
+**RISMiCal-QM** is a Python wrapper script designed to perform QM/3D-RISM (KSDFT/3D-RISM, 3D-RISM-SCF, QM/MM/3D-RISM) calculations by coupling **Gaussian 16** (Quantum Mechanics engine) and **RISMiCal** (3D-RISM solver). It fully automates the self-consistent iterations between the solute's electronic structure and the solvent's 3D spatial distribution.
 
 ## Key Features
 * **Fully Automated SCF Cycles:** Automates the execution of Gaussian (`g16`, `formchk`, `cubegen`) and `rismical.x`, updating atomic charges (ESP/MK) and solvent potentials iteratively until energy convergence is achieved.
@@ -53,7 +53,7 @@ During the execution, the script generates various files, which are securely bac
 
 <a id="japanese"></a>
 ## 概要
-**RISMiCal-QM** は、**Gaussian 16**（量子化学計算プログラム）と **RISMiCal**（3D-RISMソルバ）を連携させ、3D-RISM-SCF計算を実行するためのPythonラッパースクリプトです。溶質の電子状態と溶媒の3D空間分布の間の自己無撞着場（SCF）サイクルを完全自動で最適化します。
+**RISMiCal-QM** は、**Gaussian 16**（量子化学計算プログラム）と **RISMiCal**（3D-RISMソルバ）を連携させ、QM/3D-RISM (KSDFT/3D-RISM, 3D-RISM-SCF, QM/MM/3D-RISMなど)計算を実行するためのPythonラッパースクリプトです。溶質の電子状態と溶媒の3D空間分布の間の自己無撞着場（SCF）サイクルを完全自動で最適化します。
 
 ## 主な機能
 * **SCFサイクルの完全自動化:** Gaussian（`g16`, `formchk`, `cubegen`）と `rismical.x` の実行を自動化し、全エネルギーが収束するまで原子電荷（ESP/MK）と溶媒ポテンシャルの更新を反復します。
