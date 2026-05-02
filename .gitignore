@@ -1,0 +1,8 @@
+*.o
+*~
+*.x
+backup/
+test/
+*.pyc
+*.guv
+example/
