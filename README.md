@@ -41,8 +41,6 @@ Add the `$RISMICALQM` (or `&RISMICALQM`) namelist to your standard RISMiCal inpu
 | `scfconv` | Float | `1e-4` | Threshold for total energy convergence (Hartree). |
 | `qvcutoff` | Float | `1e-6` | Magnitude filter for solvent charges. Grid points with absolute charge `< qvcutoff` are ignored to speed up Gaussian integration. |
 | `qvcore` | Float | `0.5` | Distance filter (in Ångströms). Solvent grid points within this radius from ANY solute atom are discarded to prevent Coulomb singularity in Gaussian. |
-| `ngrid3d` | Integer| `128` | Number of grids per axis (Must match the value in `$GRID3D`). |
-| `rdelta3d`| Float | `0.5` | Grid spacing in Ångströms (Must match the value in `$GRID3D`). |
 
 ## Generated Files
 During the execution, the script generates various files, which are securely backed up iteratively (e.g., `*.gout.0`, `*.rsmout.1`):
@@ -89,8 +87,7 @@ python3 RISMiCal-QM.py input.inp
 | `scfconv` | Float | `1e-4` | 全エネルギーの収束閾値（Hartree単位）。 |
 | `qvcutoff` | Float | `1e-6` | 溶媒電荷の絶対値によるフィルタリング閾値。Gaussianの積分計算を高速化するため、この値未満の微小な電荷は無視されます。 |
 | `qvcore` | Float | `0.5` | 距離フィルタ（Å単位）。Gaussian内でのクーロン発散を防ぐため、**いずれかの溶質原子からこの半径内にある溶媒グリッド点は除外**されます。 |
-| `ngrid3d` | Integer| `128` | 1軸あたりのグリッド数（`$GRID3D` 内の設定値と一致させる必要があります）。 |
-| `rdelta3d`| Float | `0.5` | グリッド間隔（Å単位）（`$GRID3D` 内の設定値と一致させる必要があります）。 |
+
 
 ## 生成されるファイル群
 実行中、以下のファイルが生成され、各イテレーションごとに安全に別名保存（例: `*.gout.0`, `*.rsmout.1`）されます。
