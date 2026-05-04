@@ -14,7 +14,7 @@ import numpy as np
 from scipy.spatial.distance import cdist
 
 try:
-    from pyscf import gto, dft, qmmm
+    from pyscf import gto, dft, qmmm, tdscf # [MODIFIED] Added tdscf import
     from pyscf.tools import cubegen
 except ImportError:
     print("[ERROR] PySCF is not installed. Please run: pip install pyscf")
@@ -124,9 +124,10 @@ def build_pyscf_mol(params, udata, qm_indices):
     mol.build()
     return mol
 
+# [MODIFIED] Extended to handle optional TD-DFT calculations for excited states
 # Run pySCF
 def run_pyscf_scf(mol, params, ext_coords=None, ext_charges=None):
-    """ Run PySCF DFT with optional background charges (QM/MM). """
+    """ Run PySCF DFT with optional background charges and optional TD-DFT. """
     xc = params.get('xc', 'b3lyp')
     mf = dft.RKS(mol)
     mf.xc = xc
@@ -140,9 +141,39 @@ def run_pyscf_scf(mol, params, ext_coords=None, ext_charges=None):
         print("\n  [ERROR] PySCF SCF calculation did not converge!")
         sys.exit(1)
         
-    # Get Mulliken charges to pass back to RISMiCal $UDATA
-    _, qm_charges = mf.mulliken_pop(verbose=0)
-    return mf.e_tot, mf.make_rdm1(), qm_charges
+    e_tot = mf.e_tot
+    dm = mf.make_rdm1()
+    
+    # [NEW] Check if excited state calculation is requested (e.g., param 'td' is set)
+    # Assumes target root is specified via 'root' parameter, defaults to 1.
+    if 'td' in params or 'cis' in params:
+        td_obj = tdscf.TDDFT(mf)
+        td_obj.nstates = int(params.get('nstates', '3'))
+        td_obj.kernel()
+        
+        target_root = int(params.get('root', '1'))
+        if target_root > len(td_obj.e):
+            print(f"\n  [ERROR] Requested root {target_root} exceeds computed states {len(td_obj.e)}.")
+            sys.exit(1)
+            
+        # Update total energy: E_GS + Excitation Energy
+        e_tot = mf.e_tot + td_obj.e[target_root - 1]
+        
+        # Calculate unrelaxed density matrix for the excited state
+        # Note: PySCF's default TDDFT doesn't natively do Z-vector (relaxed density) easily, 
+        # using unrelaxed as an approximation for the potential.
+        dm_ex = td_obj.get_abinit_1pdm(target_root)
+        # Add transition density correction to ground state density
+        dm = mf.make_rdm1() + dm_ex
+        
+        # Calculate Mulliken charges for the excited state density
+        mol_charges = mol.atom_charges()
+        qm_charges = mol_charges - np.einsum('ij,ji->i', dm, mf.get_ovlp()).real
+    else:
+        # Ground state charges
+        _, qm_charges = mf.mulliken_pop(verbose=0)
+        
+    return e_tot, dm, qm_charges
 
 # Calculate electrostatic interaction energy between solvent and MM atoms
 def process_qv_and_get_ext_charges(qv_file, udata, qvcutoff, qvcore, mm_indices):
@@ -270,8 +301,14 @@ def read_xmu(xmu_file):
 # Main
 #
 def main():
+    # [NEW] Check for FC flag and safely remove it from argv so inp_file parsing works
+    fc_mode = False
+    if "-FC" in sys.argv:
+        fc_mode = True
+        sys.argv.remove("-FC")
+
     if len(sys.argv) < 2: 
-        print("Usage: python RISMiCal-PySCF.py <input_file>"); sys.exit(1)
+        print("Usage: python RISMiCal-PySCF.py <input_file> [-FC]"); sys.exit(1)
         
     inp_file = sys.argv[1]
     base_name = os.path.splitext(inp_file)[0]
@@ -301,7 +338,32 @@ def main():
     print(f" Total Atoms: {total_atoms} (QM: {len(qm_indices)}, MM: {len(mm_indices)})")
     
     mol = build_pyscf_mol(params, udata, qm_indices)
-    
+
+    # =========================================================
+    # [NEW] Franck-Condon (FC) Mode Execution
+    # =========================================================
+    if fc_mode:
+        print("\n--- Franck-Condon (FC) State Calculation ---")
+        if not os.path.exists(qv_file):
+            print(f"  [ERROR] FC mode requires an existing '{qv_file}' in the current directory.")
+            sys.exit(1)
+            
+        print(f"  Using existing frozen solvent/MM charges from: {qv_file}")
+        
+        # Read external charges from the existing .qv file
+        ext_coords, ext_charges, e_mv = process_qv_and_get_ext_charges(qv_file, udata, qvcutoff, qvcore, mm_indices)
+        
+        # Run PySCF single point calculation with the frozen environment
+        e_qm_hartree, dm, new_chg = run_pyscf_scf(mol, params, ext_coords, ext_charges)
+        e_qm = e_qm_hartree * HARTREE_TO_JMOL
+        
+        print("\n  >>> FC Calculation Completed Successfully! <<<")
+        print(f"  QM Energy (with frozen env): {e_qm:.4f} J/mol")
+        if mm_indices:
+            print(f"  MM-Solv Int. (E_MV)        : {e_mv:.4f} J/mol")
+        sys.exit(0) # Terminate the script without running RISMiCal
+    # =========================================================
+
     # ---------------------------------------------------------
     # Pre-Step 1: Pure QM Vacuum
     # ---------------------------------------------------------

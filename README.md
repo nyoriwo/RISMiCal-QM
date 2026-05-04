@@ -12,6 +12,7 @@
 ## Key Features
 * **Baseline Energy Profiling (Pre-steps):** Automatically evaluates the pure QM vacuum energy (E_gas) and the QM+MM vacuum energy (E_QMMM_gas) before introducing the solvent, allowing for precise calculation of QM-MM interactions.
 * **Rigorous QM/MM Potential Integration:** Since Gaussian's cubegen only outputs the QM electrostatic potential, the script calculates the exact Coulomb potential of the MM atoms in Python and directly merges it into the 3D ASCII cube grid for RISMiCal.
+* **Excited State & Franck-Condon Support:** Seamlessly handles excited state potentials (e.g., TD-DFT) by automatically detecting the Density=Current keyword. Supports Franck-Condon (FC) state calculations using frozen solvent environments via the -FC flag.
 * **Perfect Grid Synchronization:** Directly controls Gaussian's cubegen via standard input to ensure the electrostatic potential grid perfectly matches the custom -rdelta3d * (ngrid3d/2) cubic grid required by RISMiCal.
 * **Robust Coulomb Singularity Avoidance:** Automatically filters out solvent grid points that are dangerously close to any solute atoms (qvcore filter) to prevent NaN errors caused by division-by-zero during Gaussian's external charge integration.
 * **Fully Automated SCF Cycles:** Automates the execution of Gaussian and rismical.x, updating atomic charges (ESP/MK) and solvent potentials iteratively until energy convergence is achieved.
@@ -27,7 +28,9 @@
 ## Usage
 Run the script by passing the RISMiCal input file as an argument:
 
-    python3 RISMiCal-QM.py input.inp
+    python3 RISMiCal-QM.py input.inp [-FC]
+
+* **-FC Flag (Optional):** Use this flag to perform a Franck-Condon (non-equilibrium) calculation. The script will read an existing .qv file in the current directory as a frozen solvent environment, run a single Gaussian calculation, and terminate without executing the RISMiCal SCF loop.
 
 ## Input File Configuration ($RISMICALQM)
 Add the $RISMICALQM (or &RISMICALQM) namelist to your standard RISMiCal input file to control the QM/MM and SCF behaviors.
@@ -35,7 +38,7 @@ Add the $RISMICALQM (or &RISMICALQM) namelist to your standard RISMiCal input fi
 | Parameter | Type | Default | Description |
 | :--- | :--- | :--- | :--- |
 | qm | String | "g16" | The quantum chemistry engine to be used (currently only g16 is supported). |
-| qmopt | String | "" | Gaussian Route section parameters. Use \ to represent newlines. (e.g., "%mem=16GB\%nproc=8\#p B3LYP/6-31G(d)"). If Pop= is not specified, Pop=MK will be added automatically. |
+| qmopt | String | "" | Gaussian Route section parameters. Use \ to represent newlines. (e.g., "%mem=16GB\%nproc=8\#p B3LYP/6-31G(d)"). If Pop= is not specified, Pop=MK will be added automatically. Note: To output excited state potentials, include Density=Current (e.g., #p TD=(Root=1) Density=Current). |
 | qmpart | String | All atoms | Comma-separated list specifying the QM atoms. (e.g., "1,2,5,-10" means atoms 1, 2, and 5 to 10 are QM atoms. The rest are treated as MM). |
 | scfconv | Float | 1e-4 | Threshold for total energy convergence (Hartree). |
 | qvcutoff | Float | 1e-6 | Magnitude filter for solvent charges. Grid points with absolute charge < qvcutoff are ignored to speed up Gaussian integration. |
@@ -46,7 +49,7 @@ Add the $RISMICALQM (or &RISMICALQM) namelist to your standard RISMiCal input fi
 ## Generated Files
 During the execution, the script generates various files, which are securely backed up iteratively:
 * *.org.inp: Backup of the original input file.
-* *.gjf / *.gout / *.chk / *.fchk: Gaussian I/O files.
+* *.gjf / *.gout / *.chk / *.fchk: Gaussian I/O files (*.gout.fc is generated in FC mode).
 * *.gout.gas / *.gout.qmmm_gas: Log files from the vacuum pre-steps.
 * *.cub: Electrostatic potential ASCII cube (QM + MM potentials combined).
 * *.qv: Filtered external point charges (solvent + MM atoms) given back to Gaussian.
@@ -60,6 +63,7 @@ During the execution, the script generates various files, which are securely bac
 ## 主な機能
 * **基準エネルギーの自動評価 (Pre-steps):** 溶媒を導入する前に、純粋なQM領域の真空エネルギー（E_gas）と、QM+MMの真空エネルギー（E_QMMM_gas）を自動計算し、QM-MM間の相互作用エネルギーを正確に評価します。
 * **厳密なQM/MMポテンシャルの統合:** Gaussianの cubegen はQMのポテンシャルしか出力しないため、Python側でMM原子群が作るクーロンポテンシャルを計算し、3DのASCII Cubeグリッドに直接加算・合成してからRISMiCalに渡します。
+* **励起状態とFranck-Condon状態のサポート:** Density=Current キーワードを自動検知し、TD-DFTなどの励起状態の静電ポテンシャルを正確に抽出します。また、-FC フラグにより、凍結された溶媒環境でのFranck-Condon状態計算（非平衡溶媒和）をサポートします。
 * **グリッドの完全同期:** cubegen に標準入力経由で直接原点とステップ幅を渡すことで、RISMiCalが要求する -rdelta3d * (ngrid3d/2) の立方グリッドと静電ポテンシャルマップを厳密に一致させます。
 * **クーロン特異点（発散）の自動回避:** Gaussianが外部電荷を読み込む際のゼロ除算エラー（NaN の発生）を防ぐため、溶質原子に近すぎる溶媒グリッド点を自動的に間引く距離フィルタ（qvcore）を搭載しています。
 * **SCFサイクルの完全自動化:** Gaussianと rismical.x の実行を自動化し、全エネルギーが収束するまで原子電荷と溶媒ポテンシャルの更新を反復します。
@@ -75,7 +79,9 @@ During the execution, the script generates various files, which are securely bac
 ## 使い方
 RISMiCalのインプットファイルを引数に指定してスクリプトを実行します：
 
-    python3 RISMiCal-QM.py input.inp
+    python3 RISMiCal-QM.py input.inp [-FC]
+
+* **-FC オプション (任意):** 既存の .qv ファイル（凍結された溶媒分布）を用いて、Franck-Condon状態（非平衡溶媒和）の1点計算を実行します。Gaussianの計算が1度だけ実行され、RISMiCalのSCFループは回さずにスクリプトを終了します。
 
 ## インプットファイルの設定 ($RISMICALQM)
 通常のRISMiCalインプットファイルに $RISMICALQM（または &RISMICALQM）ネームリストを追加し、計算条件を指定します。
@@ -83,7 +89,7 @@ RISMiCalのインプットファイルを引数に指定してスクリプトを
 | パラメータ | 型 | デフォルト値 | 説明 |
 | :--- | :--- | :--- | :--- |
 | qm | String | "g16" | 使用する量子化学計算エンジン（現在は g16 のみ対応）。 |
-| qmopt | String | "" | Gaussianのインプット指定（Link 0コマンドおよびRouteセクション）。改行は \ で表現します（例: "%mem=16GB\%nproc=8\#p B3LYP/6-31G(d)"）。Pop= が指定されていない場合は、自動的に Pop=MK が付加されます。 |
+| qmopt | String | "" | Gaussianのインプット指定（Link 0コマンドおよびRouteセクション）。改行は \ で表現します（例: "%mem=16GB\%nproc=8\#p B3LYP/6-31G(d)"）。Pop= が指定されていない場合は、自動的に Pop=MK が付加されます。※励起状態のポテンシャルを出力する場合は Density=Current を必ず含めてください。 |
 | qmpart | String | 全原子 | QM領域として扱う原子のリストをカンマ区切りで指定します（例: "1,2,5,-10" は、1, 2番原子と、5〜10番原子をQMとして扱います。それ以外はMMとなります）。 |
 | scfconv | Float | 1e-4 | 全エネルギーの収束閾値（Hartree単位）。 |
 | qvcutoff | Float | 1e-6 | 溶媒電荷の絶対値によるフィルタリング閾値。Gaussianの積分計算を高速化するため、この値未満の微小な電荷は無視されます。 |
@@ -94,7 +100,7 @@ RISMiCalのインプットファイルを引数に指定してスクリプトを
 ## 生成されるファイル群
 実行中、以下のファイルが生成され、各イテレーションごとに安全に別名保存されます。
 * *.org.inp: 実行時のオリジナルインプットファイルのバックアップ。
-* *.gjf / *.gout / *.chk / *.fchk: Gaussianの入出力・チェックポイントファイル.
+* *.gjf / *.gout / *.chk / *.fchk: Gaussianの入出力・チェックポイントファイル（FCモード時は *.gout.fc が生成されます）。
 * *.gout.gas / *.gout.qmmm_gas: Pre-step（真空状態）のGaussianログファイル.
 * *.cub: RISMiCal用に合成された静電ポテンシャルマップ（QM + MMの寄与を含む）のASCII形式Cubeファイル.
 * *.qv: フィルタリング処理を経て、Gaussianに外部電荷として渡される溶媒（およびMM原子）の点電荷ファイル.
