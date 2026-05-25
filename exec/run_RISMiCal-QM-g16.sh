@@ -12,4 +12,4 @@ cd $PBS_O_WORKDIR
 
 output=`basename $arg1 .inp`.out
 
-python3 ~/software/RISMiCal-QM/RISMiCal-QM.py $arg1 &> $output
+python3 ~/software/RISMiCal-local/RISMiCal-QM/exec/RISMiCal-QM-g16.py $arg1 $arg2 &> $output
